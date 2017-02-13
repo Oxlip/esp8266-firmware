@@ -3,6 +3,7 @@
  */
 #include "espressif/esp_common.h"
 #include "esp/uart.h"
+#include "esp/spi.h"
 
 #include <string.h>
 
@@ -27,6 +28,7 @@
 
 /* certs, key, and endpoint */
 extern char *ca_cert, *client_endpoint, *client_cert, *client_key;
+#define delay_ms(ms) vTaskDelay((ms) / portTICK_PERIOD_MS)
 
 static int wifi_alive = 0;
 static int ssl_reset;
@@ -265,6 +267,32 @@ static void wifi_task(void *pvParameters) {
     }
 }
 
+static void spi_task (void *pvParameters) {
+    const spi_settings_t my_settings = {
+     .mode = SPI_MODE0,
+     .freq_divider = SPI_FREQ_DIV_125K,
+     .msb = false,
+     .endianness = SPI_LITTLE_ENDIAN,
+     .minimal_pins = false
+    };
+
+    const char out_data [] = "HELLO";
+    char in_data [sizeof(out_data)];
+
+    spi_set_settings(1, &my_settings);
+    while (true)
+    {
+        spi_transfer(1, out_data, in_data, sizeof(out_data), SPI_8BIT);
+        in_data[sizeof(in_data) - 1] = 0;
+        printf("Sent: %s, got: %s (", out_data, in_data);
+        for (size_t i = 0; i < sizeof(in_data); i ++)
+            printf("0x%02x ", in_data[i]);
+        printf(")\n");
+        delay_ms(1000);
+    }
+
+}
+
 void user_init(void) {
     uart_set_baud(0, 115200);
     printf("SDK version: %s, free heap %u\n", sdk_system_get_sdk_version(),
@@ -273,8 +301,11 @@ void user_init(void) {
     gpio_enable(GPIO_LED, GPIO_OUTPUT);
     gpio_write(GPIO_LED, 1);
 
-    publish_queue = xQueueCreate(3, 16);
+
+    publish_queue = xQueueCreate(4, 16);
     xTaskCreate(&wifi_task, "wifi_task", 256, NULL, 2, NULL);
     xTaskCreate(&beat_task, "beat_task", 256, NULL, 2, NULL);
     xTaskCreate(&mqtt_task, "mqtt_task", 2048, NULL, 2, NULL);
+    xTaskCreate(&spi_task, "spi_task", 2048, NULL, 2, NULL);
+
 }
