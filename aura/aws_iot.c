@@ -1,19 +1,15 @@
 /*
  * Derived from examples/mqtt_client/mqtt_client.c - added TLS1.2 support and some minor modifications.
  */
-#include "espressif/esp_common.h"
-#include "esp/uart.h"
-#include "esp/spi.h"
+#include <espressif/esp_common.h>
+#include <espressif/esp_sta.h>
 
 #include <string.h>
 
 #include <FreeRTOS.h>
 #include <task.h>
 #include <queue.h>
-#include <ssid_config.h>
 
-#include <espressif/esp_sta.h>
-#include <espressif/esp_wifi.h>
 
 #include <paho_mqtt_c/MQTTESP8266.h>
 #include <paho_mqtt_c/MQTTClient.h>
@@ -21,16 +17,15 @@
 // this must be ahead of any mbedtls header files so the local mbedtls/config.h can be properly referenced
 #include "ssl_connection.h"
 
+#include "common_export.h"
+
 #define MQTT_PUB_TOPIC "esp8266/status"
 #define MQTT_SUB_TOPIC "esp8266/control"
-#define GPIO_LED 2
 #define MQTT_PORT 8883
 
 /* certs, key, and endpoint */
 extern char *ca_cert, *client_endpoint, *client_cert, *client_key;
-#define delay_ms(ms) vTaskDelay((ms) / portTICK_PERIOD_MS)
 
-static int wifi_alive = 0;
 static int ssl_reset;
 static SSLConnection *ssl_conn;
 static QueueHandle_t publish_queue;
@@ -71,10 +66,8 @@ static void topic_received(mqtt_message_data_t *md) {
 
     if (!strncmp(message->payload, "on", 2)) {
         printf("Turning on LED\r\n");
-        gpio_write(GPIO_LED, 0);
     } else if (!strncmp(message->payload, "off", 3)) {
         printf("Turning off LED\r\n");
-        gpio_write(GPIO_LED, 1);
     }
 }
 
@@ -222,93 +215,9 @@ static void mqtt_task(void *pvParameters) {
     }
 }
 
-static void wifi_task(void *pvParameters) {
-    uint8_t status = 0;
-    uint8_t retries = 30;
-    struct sdk_station_config config = { .ssid = WIFI_SSID, .password =
-            WIFI_PASS, };
-
-    printf("%s: Connecting to WiFi\n\r", __func__);
-    sdk_wifi_set_opmode (STATION_MODE);
-    sdk_wifi_station_set_config(&config);
-
-    while (1) {
-        wifi_alive = 0;
-
-        while ((status != STATION_GOT_IP) && (retries)) {
-            status = sdk_wifi_station_get_connect_status();
-            printf("%s: status = %d\n\r", __func__, status);
-            if (status == STATION_WRONG_PASSWORD) {
-                printf("WiFi: wrong password\n\r");
-                break;
-            } else if (status == STATION_NO_AP_FOUND) {
-                printf("WiFi: AP not found\n\r");
-                break;
-            } else if (status == STATION_CONNECT_FAIL) {
-                printf("WiFi: connection failed\r\n");
-                break;
-            }
-            vTaskDelay(1000 / portTICK_PERIOD_MS);
-            --retries;
-        }
-
-        while ((status = sdk_wifi_station_get_connect_status())
-                == STATION_GOT_IP) {
-            if (wifi_alive == 0) {
-                printf("WiFi: Connected\n\r");
-                wifi_alive = 1;
-            }
-            vTaskDelay(500 / portTICK_PERIOD_MS);
-        }
-
-        wifi_alive = 0;
-        printf("WiFi: disconnected\n\r");
-        vTaskDelay(1000 / portTICK_PERIOD_MS);
-    }
-}
-
-static void spi_task (void *pvParameters) {
-    const spi_settings_t my_settings = {
-     .mode = SPI_MODE0,
-     .freq_divider = SPI_FREQ_DIV_125K,
-     .msb = false,
-     .endianness = SPI_LITTLE_ENDIAN,
-     .minimal_pins = false
-    };
-
-    const char out_data [] = "HELLO";
-    char in_data [sizeof(out_data)];
-
-    spi_set_settings(1, &my_settings);
-    while (true)
-    {
-        spi_transfer(1, out_data, in_data, sizeof(out_data), SPI_8BIT);
-        in_data[sizeof(in_data) - 1] = 0;
-        printf("Sent: %s, got: %s (", out_data, in_data);
-        for (size_t i = 0; i < sizeof(in_data); i ++)
-            printf("0x%02x ", in_data[i]);
-        printf(")\n");
-        delay_ms(1000);
-    }
-
-}
-
-extern void rest_server_task (void *pvParameters);
-
-void user_init(void) {
-    uart_set_baud(0, 115200);
-    printf("SDK version: %s, free heap %u\n", sdk_system_get_sdk_version(),
-            xPortGetFreeHeapSize());
-
-    gpio_enable(GPIO_LED, GPIO_OUTPUT);
-    gpio_write(GPIO_LED, 1);
-
-
-    publish_queue = xQueueCreate(5, 16);
-    xTaskCreate(&wifi_task, "wifi_task", 256, NULL, 2, NULL);
+void aws_iot_init()
+{
+    publish_queue = xQueueCreate(4, 16);
     xTaskCreate(&beat_task, "beat_task", 256, NULL, 2, NULL);
     xTaskCreate(&mqtt_task, "mqtt_task", 2048, NULL, 2, NULL);
-    xTaskCreate(&spi_task, "spi_task", 2048, NULL, 2, NULL);
-    xTaskCreate(&rest_server_task, "spi_task", 2048, NULL, 2, NULL);
-
 }
