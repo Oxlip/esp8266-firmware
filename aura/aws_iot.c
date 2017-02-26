@@ -293,6 +293,8 @@ static void spi_task (void *pvParameters) {
 
 }
 
+extern void rest_server_task (void *pvParameters);
+
 void user_init(void) {
     uart_set_baud(0, 115200);
     printf("SDK version: %s, free heap %u\n", sdk_system_get_sdk_version(),
@@ -302,10 +304,11 @@ void user_init(void) {
     gpio_write(GPIO_LED, 1);
 
 
-    publish_queue = xQueueCreate(4, 16);
+    publish_queue = xQueueCreate(5, 16);
     xTaskCreate(&wifi_task, "wifi_task", 256, NULL, 2, NULL);
     xTaskCreate(&beat_task, "beat_task", 256, NULL, 2, NULL);
     xTaskCreate(&mqtt_task, "mqtt_task", 2048, NULL, 2, NULL);
     xTaskCreate(&spi_task, "spi_task", 2048, NULL, 2, NULL);
+    xTaskCreate(&rest_server_task, "spi_task", 2048, NULL, 2, NULL);
 
 }
