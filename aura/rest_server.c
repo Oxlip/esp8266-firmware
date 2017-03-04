@@ -33,6 +33,10 @@ http_req_handler_t rest_handlers[] = {
     {REQUEST_TYPE_PUT, "/settings", PUT_settings}
 };
 
-void rest_server_task (void *pvParameters) {
+static void rest_server_task (void *pvParameters) {
     http_listen_forever(80, rest_handlers, sizeof(rest_handlers) / sizeof(rest_handlers[0]));
+}
+
+void rest_api_init() {
+    xTaskCreate(&rest_server_task, "rest_server_task", 2048, NULL, 2, NULL);
 }
