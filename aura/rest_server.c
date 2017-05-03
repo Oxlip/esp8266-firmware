@@ -2,6 +2,7 @@
 #include <task.h>
 
 #include "http_handler.h"
+#include "common_export.h"
 
 /*
  * Hanlder for URL : /networks
@@ -13,8 +14,7 @@ static int GET_networks(http_request_t *request, http_response_t *response)
     response->status = 200;
     response->reason = "OK";
     response->content_type = "application/json";
-    //TODO - Start wifi scanning and get the list.
-    response->body = "[{\"ssid\": \"test\", \"rssi\": 3}";
+    response->body = wifi_ap_get_ssid_list_as_json();
     return 0;
 }
 

@@ -36,8 +36,9 @@ static void
 write_response(int sock, http_response_t *resp)
 {
     char buffer[200];
-    sprintf(buffer, "HTTP/1.0 %d OK %s\r\nContent-Type: %s\r\n\r\n%s", resp->status, resp->reason, resp->content_type, resp->body);
+    sprintf(buffer, "HTTP/1.0 %d OK %s\r\nContent-Type: %s\r\n\r\n", resp->status, resp->reason, resp->content_type);
     write(sock, buffer, strlen(buffer));
+    write(sock, resp->body, strlen(resp->body));
 }
 
 /*
