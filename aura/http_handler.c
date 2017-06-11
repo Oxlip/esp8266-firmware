@@ -36,7 +36,9 @@ static void
 write_response(int sock, http_response_t *resp)
 {
     char buffer[200];
-    sprintf(buffer, "HTTP/1.0 %d OK %s\r\nContent-Type: %s\r\n\r\n", resp->status, resp->reason, resp->content_type);
+    sprintf(buffer, "HTTP/1.0 %d OK %s\r\n", resp->status, resp->reason);
+    write(sock, buffer, strlen(buffer));
+    sprintf(buffer, "Content-Type: %s\r\n\r\n", resp->content_type);
     write(sock, buffer, strlen(buffer));
     write(sock, resp->body, strlen(resp->body));
 }
@@ -180,6 +182,7 @@ handle_http_request(int sock, http_req_handler_t *handlers, int handler_count)
         response.status = 404;
         response.reason = "Not Found";
         response.content_type = "plain/text";
+        response.body = "URL not found.";
         write_response(sock, &response);
     }
 
