@@ -159,11 +159,16 @@ handle_http_request(int sock, http_req_handler_t *handlers, int handler_count)
 {
     #define REQ_BUF_SIZE 1000
     char *buffer = malloc(REQ_BUF_SIZE);
-    int ret;
+    int len, ret;
     http_request_t request;
     http_response_t response;
 
-    ret = read(sock, buffer, REQ_BUF_SIZE);
+    len = read(sock, buffer, REQ_BUF_SIZE);
+    if (len <= 0) {
+    	return;
+    }
+    buffer[len - 1] = 0;
+
     ret = parse_request(buffer, &request);
     if (ret) {
         return;

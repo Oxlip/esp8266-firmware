@@ -22,3 +22,6 @@
 [submodule "extras/http-parser/http-parser"]
 	path = extras/http-parser/http-parser
 	url = https://github.com/nodejs/http-parser
+[submodule "aura/jsmn"]
+	path = aura/jsmn
+	url = https://github.com/zserge/jsmn
